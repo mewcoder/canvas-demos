@@ -1,0 +1,107 @@
+<!DOCTYPE html>
+<html lang="en">
+  <head>
+    <meta charset="UTF-8" />
+    <meta name="viewport" content="width=device-width, initial-scale=1.0" />
+    <title>Canvas Draw Performance Test</title>
+    <style>
+      .canvas-container {
+        display: flex;
+        flex-wrap: wrap;
+        gap: 1rem;
+      }
+      canvas {
+        border: 1px solid #ccc;
+      }
+    </style>
+  </head>
+  <body>
+    <h1>Canvas Draw Performance Test</h1>
+    <label for="canvasNum">Number of canvas:</label>
+    <input type="number" id="canvasNum" value="20" min="1" />
+    <label for="rectNum">Number of Rectangle:</label>
+    <input type="number" id="rectNum" value="20000" min="1" />
+    <button onclick="draw()">Draw</button>
+    <p id="timeResult"></p>
+    <div id="canvas-container" class="canvas-container"></div>
+
+    <script>
+      // 预先创建好canvas和context对象数组
+      let canvases = [];
+      let contexts = [];
+      let startTime;
+
+      window.onload = prepareCanvases;
+
+      function prepareCanvases() {
+        const canvasNum = parseInt(document.getElementById("canvasNum").value);
+        const canvasContainer = document.getElementById("canvas-container");
+        canvasContainer.innerHTML = "";
+        canvases = [];
+        contexts = [];
+
+        for (let i = 0; i < canvasNum; i++) {
+          const canvas = document.createElement("canvas");
+          canvas.id = `canvas-${i}`;
+          canvas.width = 300;
+          canvas.height = 200;
+          canvasContainer.appendChild(canvas);
+          canvases.push(canvas);
+          contexts.push(canvas.getContext("2d"));
+        }
+      }
+
+      function draw() {
+        const rectNum = parseInt(document.getElementById("rectNum").value);
+        let rectsForEachCanvas = prepareRectangles(contexts.length, rectNum);
+
+        startTime = performance.now();
+
+        contexts.forEach((context, index) => {
+          window.requestAnimationFrame(() => {
+            drawRectanglesFromData(context, rectsForEachCanvas[index]);
+          });
+        });
+      }
+
+      function prepareRectangles(canvasNum, rectNum) {
+        let allRectangles = [];
+        for (let i = 0; i < canvasNum; i++) {
+          let rectangles = [];
+          for (let j = 0; j < rectNum; j++) {
+            rectangles.push({
+              x: Math.random() * 300,
+              y: Math.random() * 200,
+              width: Math.random() * 90 + 10,
+              height: Math.random() * 90 + 10,
+            });
+          }
+          allRectangles.push(rectangles);
+        }
+        return allRectangles;
+      }
+
+      function drawRectanglesFromData(context, rectangles) {
+        context.beginPath();
+        rectangles.forEach((rect) => {
+          context.rect(rect.x, rect.y, rect.width, rect.height);
+        });
+        context.strokeStyle = "red";
+        context.stroke();
+
+        // 若 contexts 是最后一个canvas，统计时间
+        if (context === contexts[contexts.length - 1]) {
+          handleEnd();
+        }
+      }
+
+      function handleEnd() {
+        const endTime = performance.now();
+        const elapsedTime = endTime - startTime;
+        document.getElementById(
+          "timeResult"
+        ).textContent = `绘制完成，耗时 ${elapsedTime.toFixed(2)} 毫秒`;
+      }
+    </script>
+  </body>
+</html>

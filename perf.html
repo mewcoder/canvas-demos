@@ -1,0 +1,124 @@
+<!DOCTYPE html>
+<html lang="en">
+  <head>
+    <meta charset="UTF-8" />
+    <meta name="viewport" content="width=device-width, initial-scale=1.0" />
+    <title>Canvas Draw Performance Test</title>
+    <style>
+      .canvas-container {
+        display: flex;
+        flex-wrap: wrap;
+        gap: 1rem;
+      }
+      canvas {
+        border: 1px solid #ccc;
+      }
+    </style>
+  </head>
+  <body>
+    <h1>Canvas Draw Performance Test</h1>
+    <label for="canvasNum">Number of canvas:</label>
+    <input type="number" id="canvasNum" value="20" min="1" />
+    <label for="rectNum">Number of Rectangle:</label>
+    <input type="number" id="rectNum" value="20000" min="1" />
+    <button onclick="draw()">Draw</button>
+    <p id="timeResult"></p>
+    <div id="canvas-container" class="canvas-container"></div>
+
+    <script>
+      function draw() {
+        const numCanvasesInput = document.getElementById("canvasNum");
+        const canvasNum = parseInt(numCanvasesInput.value);
+        const numRectsPerCanvasInput = document.getElementById("rectNum");
+        const rectNum = parseInt(numRectsPerCanvasInput.value);
+        const canvasContainer = document.getElementById("canvas-container");
+
+        // 清空已有画布（如果有）
+        canvasContainer.innerHTML = "";
+
+        // 预生成所有矩形的属性
+        const allRectangles = prepareRectangles(canvasNum, rectNum);
+
+        const startTime = performance.now();
+
+        for (let i = 0; i < canvasNum; i++) {
+          const ctx = createCanvas(canvasContainer, i);
+          drawRectanglesFromData(ctx, allRectangles[i]);
+          //   const backgroundImage = new Image();
+          //   backgroundImage.src = "./pic.jpg";
+          //   backgroundImage.onload = () => {
+          //     ctx.drawImage(backgroundImage, 0, 0, 300, 200); // 绘制背景图片到整个画布
+          //     drawRectanglesFromData(ctx, allRectangles[i]);
+          //   };
+        }
+
+        const endTime = performance.now();
+        const elapsedTime = endTime - startTime;
+
+        document.getElementById("timeResult").textContent = `绘制了 ${
+          canvasNum * rectNum
+        } 个矩形，耗时 ${elapsedTime.toFixed(2)} 毫秒`;
+      }
+
+      // 预生成所有矩形的属性，并按画布分组存储在二维数组中
+      function prepareRectangles(canvasNum, rectNum) {
+        const allRectangles = [];
+
+        for (let i = 0; i < canvasNum; i++) {
+          const canvasRectangles = [];
+
+          for (let j = 0; j < rectNum; j++) {
+            const x = Math.random() * 300;
+            const y = Math.random() * 200;
+
+            const width = Math.random() * 90 + 10;
+            const height = Math.random() * 90 + 10;
+            // const strokeStyle =
+            //   "#" + Math.floor(Math.random() * 16777215).toString(16); // Random fill color
+            // canvasRectangles.push({ x, y, width, height, strokeStyle });
+            canvasRectangles.push({ x, y, width, height });
+          }
+
+          allRectangles.push(canvasRectangles);
+        }
+
+        return allRectangles;
+      }
+
+      function createCanvas(canvasContainer, i) {
+        const canvas = document.createElement("canvas");
+        canvas.id = `canvas-${i + 1}`;
+        canvas.width = 300;
+        canvas.height = 200;
+        canvasContainer.appendChild(canvas);
+        const ctx = canvas.getContext("2d");
+        return ctx;
+      }
+
+      // 使用预生成的矩形数据进行绘制
+      function drawRectanglesFromData(context, rectangles) {
+        context.beginPath(); // 开始一个新的路径
+        rectangles.forEach((rect) => {
+          context.rect(rect.x, rect.y, rect.width, rect.height); // 添加矩形路径，不立即绘制
+        });
+        context.strokeStyle = "red"; // 共享一个strokeStyle，避免频繁设置（如果允许的话）
+        context.stroke(); // 批量绘制所有矩形
+      }
+
+      //   function drawRectanglesFromData(context, rectangles) {
+      //     rectangles.forEach((rect) => {
+      //       //   context.strokeStyle = rect.strokeStyle;
+      //       context.strokeStyle = "red";
+      //       context.strokeRect(rect.x, rect.y, rect.width, rect.height);
+      //     });
+      //   }
+
+      function createOffscreenCanvas() {
+        const offscreenCanvas = document.createElement("canvas");
+        offscreenCanvas.width = 300;
+        offscreenCanvas.height = 200;
+        return [offscreenCanvas, offscreenCanvas.getContext("2d")];
+      }
+    </script>
+  </body>
+</html>
