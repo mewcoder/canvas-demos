@@ -1,14 +1,29 @@
 <template>
-  <canvas ref="canvasRef" width="300" height="200"></canvas>
+  <div class="box">
+    <div v-show="!show" class="loading">loading...</div>
+    <img v-show="show" class="img" width="300" height="200" src="/ca.jpeg" />
+    <canvas
+      v-show="show"
+      ref="canvasRef"
+      width="300"
+      height="200"
+      class="canvas"
+    >
+    </canvas>
+  </div>
 </template>
 
 <script setup>
-import { onMounted, ref, nextTick } from "vue";
+import { onMounted, ref, nextTick, inject, onBeforeUnmount } from "vue";
 
 const props = defineProps({
   data: {
     type: Object,
     default: () => ({}),
+  },
+  i: {
+    type: Number,
+    default: 0,
   },
 });
 
@@ -16,20 +31,62 @@ const emit = defineEmits(["render"]);
 
 const canvasRef = ref();
 
+const show = ref(true);
+
+const workerPool = inject("workerPool");
+
 onMounted(() => {
-  const ctx = canvasRef.value.getContext("2d");
-  drawRectanglesFromData(ctx, props.data);
+  console.log("mounted", props.i);
+  // show.value = false;
+  const canvas = canvasRef.value;
+  const offscreen = canvas.transferControlToOffscreen();
+
+  // const worker = new Worker("/render-worker.js");
+  workerPool.runTask(
+    [{ canvas: offscreen, data: props.data }, [offscreen]],
+    handleMsg
+  );
+  // worker.postMessage({ canvas: offscreen, data: props.data }, [offscreen]);
+
+  // worker.onmessage = () => {
+  // show.value = true;
+  // emit("render", performance.now());
+  // };
 });
 
-function drawRectanglesFromData(context, rectangles) {
-  context.beginPath(); // 开始一个新的路径
-  rectangles.forEach((rect) => {
-    context.rect(rect.x, rect.y, rect.width, rect.height); // 添加矩形路径，不立即绘制
-  });
-  context.strokeStyle = rectangles[0].strokeStyle || "red"; // 共享一个strokeStyle，避免频繁设置（如果允许的话）
-  context.stroke(); // 批量绘制所有矩形
-  nextTick(() => {
-    emit("render", performance.now());
-  });
+function handleMsg() {
+  show.value = true;
+  console.log("rendered", props.i);
+  emit("render", performance.now());
 }
+
+onBeforeUnmount(() => {
+  console.log("unmounted", props.i);
+});
 </script>
+<style>
+.box {
+  border: 1px solid #000;
+  box-sizing: content-box;
+  width: 300px;
+  height: 200px;
+  position: relative;
+}
+.loading {
+  height: 100%;
+  display: flex;
+  justify-content: center;
+  align-items: center;
+}
+.img {
+  position: absolute;
+  top: 0;
+  left: 0;
+}
+
+.canvas {
+  position: absolute;
+  top: 0;
+  left: 0;
+}
+</style>

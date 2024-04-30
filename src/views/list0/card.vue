@@ -4,6 +4,7 @@
 
 <script setup>
 import { onMounted, ref, nextTick } from "vue";
+import { ShapeRenderer } from "../render";
 
 const props = defineProps({
   data: {
@@ -18,7 +19,14 @@ const canvasRef = ref();
 
 onMounted(() => {
   const ctx = canvasRef.value.getContext("2d");
-  drawRectanglesFromData2(ctx, props.data);
+  // drawRectanglesFromData2(ctx, props.data);
+  const renderer = new ShapeRenderer(ctx, {
+    strokeStyle: "red",
+  });
+  renderer.renderRectangles(props.data);
+  nextTick(() => {
+    emit("render", performance.now());
+  });
 });
 
 function drawRectanglesFromData(context, rectangles) {

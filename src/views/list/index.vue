@@ -33,7 +33,7 @@ import {
   onBeforeUnmount,
 } from "vue";
 import WorkerPool from "./pool.js";
-import Card from "./card2.vue";
+import Card from "./card.vue";
 import rect from "./mock.js";
 
 const num = ref(0);

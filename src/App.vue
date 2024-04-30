@@ -3,11 +3,12 @@ import { RouterLink, RouterView } from "vue-router";
 </script>
 
 <template>
-  <!-- <div class="nav">
+  <div class="nav">
     <RouterLink to="/">home</RouterLink>
-    <RouterLink to="/image">image</RouterLink>
-    <RouterLink to="/canvas">canvas</RouterLink>
-  </div> -->
+    <RouterLink to="/demo1">图片</RouterLink>
+    <RouterLink to="/demo2">缩放</RouterLink>
+    <RouterLink to="/demo3">绘制</RouterLink>
+  </div>
   <RouterView />
 </template>
 
