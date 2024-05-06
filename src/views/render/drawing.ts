@@ -10,7 +10,7 @@ function pointInRect({ x, y }: Point, rect: Rectangle) {
 }
 
 function getHandles(rect: Rectangle) {
-  let width = 12;
+  const width = 12;
   return [
     {
       id: "tl",
@@ -43,137 +43,61 @@ function getHandles(rect: Rectangle) {
   ];
 }
 
+enum InteractionMode {
+  Idle,
+  Draw,
+  Move,
+  Resize,
+}
+
 export class Drawing {
   private canvas: HTMLCanvasElement;
   private ctx: CanvasRenderingContext2D;
+  private interactionMode: InteractionMode = InteractionMode.Idle;
   private rects: Rectangle[] = [];
   private startPoint: Point = { x: 0, y: 0 };
   private offsetPoint: Point = { x: 0, y: 0 };
-  private handleOffset: Point = { x: 0, y: 0 };
+
   private drawingRect: any = null;
   private selectedId: string = "";
   private selectedRect: Rectangle | null = null;
 
   private draggingHandle: any = null;
-  private resizeRect: any = null;
+  private startResizeRect: any = null;
   private resizeHandles: Rectangle[] = [];
 
   constructor(canvas: HTMLCanvasElement, ctx: CanvasRenderingContext2D) {
     this.canvas = canvas;
     this.ctx = ctx;
     this.rects = [];
+    this.interactionMode = InteractionMode.Idle;
     this.addEvents();
   }
 
-  private onMouseDown = (e: MouseEvent) => {
-    const x = (this.startPoint.x = e.offsetX);
-    const y = (this.startPoint.y = e.offsetY);
-
-    // select rect
-    this.selectRectAt(this.startPoint);
-
-    if (this.selectedRect) {
-      const handle = this.pointInHandles(this.startPoint, this.selectedRect);
-
-      if (handle) {
-        this.draggingHandle = handle;
-        this.handleOffset.x = x - handle.x;
-        this.handleOffset.y = y - handle.y;
-        this.resizeRect = { ...this.selectedRect };
-        return;
-      } else {
-        this.draggingHandle = null;
-      }
-    }
-
-    if (this.selectedRect) {
-      this.draw();
-      this.offsetPoint.x = x - this.selectedRect.x;
-      this.offsetPoint.y = y - this.selectedRect.y;
-    } else {
-      this.draw();
-      this.drawingRect = this.drawingRect || {};
-    }
-  };
-
-  private onMouseMove = (e: MouseEvent) => {
-    if (this.drawingRect) {
-      this.changeCursor("crosshair");
-      const { x, y } = this.startPoint;
-      this.drawingRect = {
-        x,
-        y,
-        width: e.offsetX - x,
-        height: e.offsetY - y,
-      };
-
-      this.draw();
-    } else if (this.selectedRect) {
-      if (this.draggingHandle) {
-        const { x, y } = this.startPoint;
-        const moveX = e.offsetX - x;
-        const moveY = e.offsetY - y;
-
-        this.handleResize(moveX, moveY);
-        this.draw();
-        return;
-      }
-      this.changeCursor("move");
-      this.selectedRect.x = e.offsetX - this.offsetPoint.x;
-      this.selectedRect.y = e.offsetY - this.offsetPoint.y;
-      this.draw();
-    }
-  };
-
-  private handleResize(moveX: number, moveY: number) {
-    if (!this.draggingHandle || !this.selectedRect) return;
-    switch (this.draggingHandle.id) {
-      case "tl": {
-        this.changeCursor("nwse-resize");
-        this.selectedRect.x = this.resizeRect.x + moveX;
-        this.selectedRect.y = this.resizeRect.y + moveY;
-        this.selectedRect.width = this.resizeRect.width - moveX;
-        this.selectedRect.height = this.resizeRect.height - moveY;
-        break;
-      }
-      case "tr": {
-        this.changeCursor("nesw-resize");
-        this.selectedRect.y = this.resizeRect.y + moveY;
-        this.selectedRect.width = this.resizeRect.width + moveX;
-        this.selectedRect.height = this.resizeRect.height - moveY;
-        break;
-      }
-      case "bl": {
-        this.changeCursor("nesw-resize");
-        this.selectedRect.x = this.resizeRect.x + moveX;
-        this.selectedRect.width = this.resizeRect.width - moveX;
-        this.selectedRect.height = this.resizeRect.height + moveY;
-        break;
-      }
-      case "br": {
-        this.changeCursor("nwse-resize");
-        this.selectedRect.width = this.resizeRect.width + moveX;
-        this.selectedRect.height = this.resizeRect.height + moveY;
-        break;
-      }
-    }
-    this.draw();
-    return;
+  private changeMode(mode: InteractionMode = InteractionMode.Idle) {
+    this.interactionMode = mode;
   }
 
-  private onMouseUp = (e: MouseEvent) => {
-    this.changeCursor();
-    if (this.drawingRect) {
+  private drawingStrategy = {
+    start: () => {
       this.drawingRect = null;
-
+      this.changeCursor("crosshair");
+    },
+    move: (e: MouseEvent) => {
+      this.drawingRect = {
+        x: this.startPoint.x,
+        y: this.startPoint.y,
+        width: e.offsetX - this.startPoint.x,
+        height: e.offsetY - this.startPoint.y,
+      };
+      this.draw();
+    },
+    end: (e: MouseEvent) => {
       const width = Math.abs(e.offsetX - this.startPoint.x);
       const height = Math.abs(e.offsetY - this.startPoint.y);
-
       if (width < 1 || height < 1) return;
-
       const x = Math.min(this.startPoint.x, e.offsetX);
       const y = Math.min(this.startPoint.y, e.offsetY);
-
       const newRect = {
         id: generateId(),
         x,
@@ -181,12 +105,138 @@ export class Drawing {
         width,
         height,
       };
-
       this.rects.push(newRect);
-    } else if (this.selectedRect) {
+      this.drawingRect = null;
+    },
+  };
+  private movingStrategy = {
+    start: () => {
+      this.changeCursor("move");
+      this.offsetPoint.x = this.startPoint.x - this.selectedRect!.x;
+      this.offsetPoint.y = this.startPoint.y - this.selectedRect!.y;
+      this.draw();
+    },
+    move: (e: MouseEvent) => {
+      this.selectedRect!.x = e.offsetX - this.offsetPoint.x;
+      this.selectedRect!.y = e.offsetY - this.offsetPoint.y;
+      this.draw();
+    },
+    end: () => {
       this.selectedRect = null;
+    },
+  };
+
+  private resizingStrategy = {
+    start: () => {
+      this.startResizeRect = { ...this.selectedRect };
+    },
+    move: (e: MouseEvent) => {
+      this.resizeSelectRect(
+        e.offsetX - this.startPoint.x,
+        e.offsetY - this.startPoint.y
+      );
+      this.draw();
+    },
+    end: () => {
+      this.selectedRect = null;
+      this.draggingHandle = null;
+    },
+  };
+
+  private onMouseDown = (e: MouseEvent) => {
+    this.startPoint.x = e.offsetX;
+    this.startPoint.y = e.offsetY;
+
+    const containerRect = this.checkPointInRect(this.startPoint);
+
+    if (!containerRect) {
+      this.changeMode(InteractionMode.Draw);
+      this.handleDrawing("start", e);
+    } else {
+      const handle = this.checkPointInHandle(this.startPoint, containerRect);
+      if (handle) {
+        this.draggingHandle = handle;
+        this.interactionMode = InteractionMode.Resize;
+        this.handleResizing("start", e);
+      } else {
+        this.interactionMode = InteractionMode.Move;
+        this.handleMoving("start", e);
+      }
     }
   };
+
+  private onMouseMove = (e: MouseEvent) => {
+    const action = this.getInteractionAction("move");
+    action && action(e);
+  };
+
+  private onMouseUp = (e: MouseEvent) => {
+    const action = this.getInteractionAction("end");
+    action && action(e);
+    this.changeCursor();
+    this.changeMode();
+  };
+
+  private getInteractionAction(
+    stage: "start" | "move" | "end"
+  ): ((e: MouseEvent) => void) | null {
+    switch (this.interactionMode) {
+      case InteractionMode.Draw:
+        return this.drawingStrategy[stage];
+      case InteractionMode.Move:
+        return this.movingStrategy[stage];
+      case InteractionMode.Resize:
+        return this.resizingStrategy[stage];
+      default:
+        return null;
+    }
+  }
+
+  private handleDrawing(type: "start" | "move" | "end", e: MouseEvent) {
+    this.drawingStrategy[type](e);
+  }
+
+  private handleMoving(type: "start" | "move" | "end", e: MouseEvent) {
+    this.movingStrategy[type](e);
+  }
+
+  private handleResizing(type: "start" | "move" | "end", e: MouseEvent) {
+    this.resizingStrategy[type](e);
+  }
+
+  private resizeSelectRect(moveX: number, moveY: number) {
+    if (!this.draggingHandle || !this.selectedRect) return;
+    switch (this.draggingHandle.id) {
+      case "tl": {
+        this.changeCursor("nwse-resize");
+        this.selectedRect.x = this.startResizeRect.x + moveX;
+        this.selectedRect.y = this.startResizeRect.y + moveY;
+        this.selectedRect.width = this.startResizeRect.width - moveX;
+        this.selectedRect.height = this.startResizeRect.height - moveY;
+        break;
+      }
+      case "tr": {
+        this.changeCursor("nesw-resize");
+        this.selectedRect.y = this.startResizeRect.y + moveY;
+        this.selectedRect.width = this.startResizeRect.width + moveX;
+        this.selectedRect.height = this.startResizeRect.height - moveY;
+        break;
+      }
+      case "bl": {
+        this.changeCursor("nesw-resize");
+        this.selectedRect.x = this.startResizeRect.x + moveX;
+        this.selectedRect.width = this.startResizeRect.width - moveX;
+        this.selectedRect.height = this.startResizeRect.height + moveY;
+        break;
+      }
+      case "br": {
+        this.changeCursor("nwse-resize");
+        this.selectedRect.width = this.startResizeRect.width + moveX;
+        this.selectedRect.height = this.startResizeRect.height + moveY;
+        break;
+      }
+    }
+  }
 
   private onKeyDown = (e: KeyboardEvent) => {
     if (e.key === "Delete" || e.key === "Backspace") {
@@ -230,39 +280,26 @@ export class Drawing {
     this.ctx.restore();
   }
 
-  private addEvents() {
-    this.canvas.addEventListener("mousedown", this.onMouseDown);
-    this.canvas.addEventListener("mousemove", this.onMouseMove);
-    this.canvas.addEventListener("mouseup", this.onMouseUp);
-    document.addEventListener("keydown", this.onKeyDown);
-  }
+  private checkPointInRect(point: Point) {
+    let containerRect = null;
 
-  private offEvents() {
-    this.canvas.removeEventListener("mousedown", this.onMouseDown);
-    this.canvas.removeEventListener("mousemove", this.onMouseMove);
-    this.canvas.removeEventListener("mouseup", this.onMouseUp);
-    document.removeEventListener("keydown", this.onKeyDown);
-  }
+    containerRect = this.rects.find((rect) => pointInRect(point, rect)) || null;
 
-  private selectRectAt(point: Point) {
     if (this.selectedId && this.resizeHandles.length) {
       const handle = this.resizeHandles.find((handle) =>
         pointInRect(point, handle)
       );
       if (handle) {
-        this.selectedRect =
+        containerRect =
           this.rects.find((rect) => rect.id === this.selectedId) || null;
-        return;
       }
     }
-
-    this.selectedRect =
-      this.rects.find((rect) => pointInRect(point, rect)) || null;
-
-    this.selectedId = this.selectedRect?.id || "";
+    this.selectedRect = containerRect;
+    this.selectedId = containerRect?.id || "";
+    return containerRect;
   }
 
-  private pointInHandles(point: Point, rect: Rectangle) {
+  private checkPointInHandle(point: Point, rect: Rectangle) {
     const handles = getHandles(rect);
     if (!handles) return;
 
@@ -275,6 +312,20 @@ export class Drawing {
 
   private changeCursor(style = "default") {
     this.canvas.style.cursor = style;
+  }
+
+  private addEvents() {
+    this.canvas.addEventListener("mousedown", this.onMouseDown);
+    this.canvas.addEventListener("mousemove", this.onMouseMove);
+    this.canvas.addEventListener("mouseup", this.onMouseUp);
+    document.addEventListener("keydown", this.onKeyDown);
+  }
+
+  private offEvents() {
+    this.canvas.removeEventListener("mousedown", this.onMouseDown);
+    this.canvas.removeEventListener("mousemove", this.onMouseMove);
+    this.canvas.removeEventListener("mouseup", this.onMouseUp);
+    document.removeEventListener("keydown", this.onKeyDown);
   }
 
   public destroy() {
