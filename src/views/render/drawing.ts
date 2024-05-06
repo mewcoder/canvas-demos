@@ -151,16 +151,16 @@ export class Drawing {
 
     if (!containerRect) {
       this.changeMode(InteractionMode.Draw);
-      this.handleDrawing("start", e);
+      this.drawingStrategy.start();
     } else {
       const handle = this.checkPointInHandle(this.startPoint, containerRect);
       if (handle) {
         this.draggingHandle = handle;
         this.interactionMode = InteractionMode.Resize;
-        this.handleResizing("start", e);
+        this.resizingStrategy.start();
       } else {
         this.interactionMode = InteractionMode.Move;
-        this.handleMoving("start", e);
+        this.movingStrategy.start();
       }
     }
   };
@@ -190,18 +190,6 @@ export class Drawing {
       default:
         return null;
     }
-  }
-
-  private handleDrawing(type: "start" | "move" | "end", e: MouseEvent) {
-    this.drawingStrategy[type](e);
-  }
-
-  private handleMoving(type: "start" | "move" | "end", e: MouseEvent) {
-    this.movingStrategy[type](e);
-  }
-
-  private handleResizing(type: "start" | "move" | "end", e: MouseEvent) {
-    this.resizingStrategy[type](e);
   }
 
   private resizeSelectRect(moveX: number, moveY: number) {
