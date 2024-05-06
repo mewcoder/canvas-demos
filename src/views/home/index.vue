@@ -3,28 +3,28 @@
 </template>
 
 <script lang="ts" setup>
-import { onMounted, ref, type Ref } from "vue";
-import { ShapeRenderer, Drawing } from "../render";
+import { onMounted, onBeforeUnmount, ref, type Ref } from "vue";
+import { Drawing } from "../render";
 
 const canvasRef = ref<HTMLCanvasElement>();
 
 const canvasCtx =
   ref<CanvasRenderingContext2D>() as Ref<CanvasRenderingContext2D>;
 
-let renderer: ShapeRenderer;
-
 let drawing: Drawing;
 
 function intCanvas() {
   const ctx = canvasRef.value?.getContext("2d")!;
-
   canvasCtx.value = ctx;
   drawing = new Drawing(canvasRef.value!, ctx);
-  renderer = new ShapeRenderer(ctx);
 }
 
 onMounted(() => {
   intCanvas();
+});
+
+onBeforeUnmount(() => {
+  drawing.destroy();
 });
 </script>
 

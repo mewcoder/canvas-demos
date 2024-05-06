@@ -3,7 +3,11 @@ export interface Point {
   y: number;
 }
 
-export interface Rectangle {
+export interface Shape {
+  id: string;
+}
+
+export interface Rectangle extends Shape {
   x: number;
   y: number;
   width: number;
