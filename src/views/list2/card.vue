@@ -23,7 +23,7 @@ const canvasRef = ref();
 
 const show = ref(true);
 
-const workerPool = inject("workerPool");
+let workerPool = inject("workerPool");
 
 onMounted(() => {
   const canvas = canvasRef.value;

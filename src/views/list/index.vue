@@ -121,7 +121,7 @@ function handleRender(timeStamp) {
   }
 }
 
-const workerPool = new WorkerPool("render-worker.js", 16);
+let workerPool = new WorkerPool("render-worker.js", 16);
 
 provide("workerPool", workerPool);
 
